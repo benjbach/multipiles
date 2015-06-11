@@ -1,6 +1,6 @@
 <?php
 
-	$target_dir = "userData/";
+	$target_dir = "multipiles/userData/";
 
 	// Only DYJSON files allowed 
 	$filename = $_FILES['file']['name'];
