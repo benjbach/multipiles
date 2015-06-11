@@ -42,7 +42,7 @@
 
 
             <div id="right" class="col">
-            <h2>Try (optimzed for chrome):</h2>
+            <h2>Try (optimized for chrome):</h2>
                 <label>Data set: </label><select id="fileSelection" onchange="setVisualizationURL()"></select>
                 <br/>
                 <br/>
@@ -227,9 +227,9 @@
             Icons made by <a href="http://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="http://www.flaticon.com" title="Flaticon">www.flaticon.com</a>             is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0">CC BY 3.0</a></p>
         </div>
     </div>
-    <script src="code/lib/d3.min.js"></script>
-    <script src="code/lib/jquery.js"></script>
-    <script src="code/lib/colors.js"></script>
+    <script src="multipiles/lib/d3.min.js"></script>
+    <script src="multipiles/lib/jquery.js"></script>
+    <script src="multipiles/lib/colors.js"></script>
     <script type="text/javascript">
 
         function setVisualizationURL(){
@@ -237,17 +237,17 @@
             var menu = $('#fileSelection')[0]
             var file = menu.options[menu.selectedIndex].text;
 
-            $('#visLink').attr('href', 'code/multipiles.html?data='+file)
+            $('#visLink').attr('href', 'multipiles/multipiles.html?data='+file)
 
         
         }
 
-        $.get('data', function( data ) {
+        $.get('multipiles/data', function( data ) {
             var list = data.split('href="') 
             for(var i=0 ; i<list.length ; i++){
                 if(list[i].indexOf('.dyjson') == -1) continue
                 $("#fileSelection")
-                    .append('<option>../data/' + list[i].split('"')[0] + '</option>')
+                    .append('<option>data/' + list[i].split('"')[0] + '</option>')
             }
         });
 
