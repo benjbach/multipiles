@@ -1,0 +1,227 @@
+    .menuPileTools{
+        font-family: Helvetica;
+        font-size: 9pt;
+        fill:#fff;
+    }
+
+    .sliderLabel{
+        font-family: Helvetica, sans-serif;
+        font-size: 9pt;
+    }
+
+    .nodeTrace{
+        stroke:1;
+        stroke:#777;
+        opacity: .3;
+    }
+
+    .timelineNodeLabels{
+        font-family: Helvetica;
+        font-size: 7pt;
+    }
+    .timelineNodeLabels-selected{
+        font-family: Helvetica;
+        font-size: 7pt;
+        fill:#66f;
+    }
+    .timelineTimeLabels{
+        font-family: Helvetica;
+        stroke:none;
+    }
+
+    .timelineControl{
+        font-family: Helvetica;
+        font-size: 9pt;
+    }
+
+    #timeline{
+        stroke:#777;
+        stroke-width:1;
+    }
+
+    .timelineMatrix{
+        stroke:#aaa;
+        stroke-width: 4;
+    }
+
+    .timelineMatrix-hovered{
+        stroke:#111;
+        stroke-width: 4;
+    }
+
+
+    rect.matrixbackground{
+        fill: #fff;
+        stroke:#ddd;
+        stroke-width:1;
+    }
+
+    rect.matrixbackground-highlighted{
+        fill: #fff;
+        stroke: #000;
+        stroke-width: 3;
+    }
+
+    .matrixGap{
+        fill:#fff;
+        stroke:none;
+    }
+
+     .matrixGap-hovered{
+        fill:#aaa;
+        stroke:none;
+    }
+
+    .labelbackground{
+        fill:#fff;
+        stroke: none;
+    }
+
+    .pilePreview{
+        stroke: #aaa;
+        stroke-width: 2;
+    }
+    .pilePreview-hovered{
+        stroke: #333;
+        stroke-width: 2;
+    }
+
+    .pilePreviewSmall{
+        stroke: #aaa;
+        stroke-width: 1;
+    }
+    .pilePreviewSmall-hovered{
+        stroke: #333;
+        stroke-width: 3;
+    }
+    
+
+    .pileTools{
+        fill: blue;
+    }
+
+    .cell{
+       stroke: none;
+       fill:#000;
+    }   
+
+
+  
+    .cell-highlight{
+        /*stroke: #000;*/
+        /*stroke-width:4;*/
+        /*opacity: 1;*/
+        fill:#f00;
+    }
+    .gridLine{
+        stroke: #eee;
+        stroke-width: 1;
+    }
+
+    .cellHalo{
+        fill: #333333;  
+        opacity: .0;
+    }   
+
+    .matrixLabel{
+        font-size: 7pt;
+        font-family: Helvetica, sans-serif;
+        opacity: .6;
+        text-anchor:right;
+    }
+
+    .matrixLabel.highlight{
+        font-size: 7pt;
+        color:#f00;
+        font-family: Helvetica, sans-serif;
+        font-weight: bold;
+        opacity: 1;
+    }
+    
+    .nodelabel{
+        color: #777;
+        font-size: 6pt;
+        font-family: Helvetica, sans-serif;
+        font-style: normal;
+    }
+    .toolLabel{
+        fill: white;
+        font-size: 9pt;
+        font-family: Helvetica, sans-serif;
+        font-style: normal;
+    }
+
+
+    .rowhighlightline{
+        stroke: #444;
+        stroke-width:2;
+    }
+
+
+   
+    #selectionRect{
+        fill: none;
+        stroke: #f00;
+        stroke-width: 1;
+        opacity: .5;
+    }
+
+
+
+
+
+    body{
+        font-family: Helvetica
+    }
+
+    div{
+        width: 100%;
+        text-align: center;
+        font-size: 11pt;
+    }
+
+    h1{
+        font-size: 20pt;
+        font-weight: normal;
+        color:#44c767;        
+    }
+
+    h2{
+        font-size: 12pt;
+
+    }
+
+    hr{
+        border: none;
+        height: 1px;
+        color:#ddd;
+        background-color: #ddd;
+    }
+
+    button{
+        background-color:#44c767;
+        -moz-border-radius:27px;
+        -webkit-border-radius:27px;
+        border-radius:27px;
+        border:none;
+        display:inline-block;
+        cursor:pointer;
+        color:#ffffff;
+        font-size:12px;
+        padding:3px 16px;
+        text-decoration:none;
+    }
+
+    .black{
+           background-color:#333;
+    }
+
+
+.myButton:hover {
+    background-color:#5cbf2a;
+}
+.myButton:active {
+    position:relative;
+    top:1px;
+}
+

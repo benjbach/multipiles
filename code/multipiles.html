@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html
+>
+<head>
+<link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+<title>MultiPiles</title>
+<body>
+    <div id="mainMenu">
+        <div id="sessions">
+            <!-- <button type="button" onclick="saveSession()">Save Session</button> -->
+<!--             <button type="button" onclick="exportSession()">Export Session</button -->
+            <button type="button" onclick="undo()">Undo</button>       
+            <button type="button" onclick="redo()">Redo</button>
+            Animate:  <input id="animateCheckBox"type="checkbox" checked/>
+            Zoom:  <input id="cellSizeBox" type="range" name="cellSizeBox" min="1" max="20" onchange="updateCellSize()" value="4"/>
+            <!-- <br/> -->
+            <!-- <label>Session Name: </label><input type="text" id="sessionName" size="80"> -->
+        <!-- </div> -->
+        <!-- <br/> -->
+        <!-- <div id="pileMenu"> -->
+         Node Order: 
+            <select id="allNodeOrder" onchange="allNodeOrderChanged()">
+                <option>Data: As indicated in data</option>
+                <option>Global: Same for all matrices </option>
+                <option>Individual: Optimzed for each pile</option>
+            </select>
+           Cover Matrix: 
+            <select id="allCover" onchange="allCoverChanged()">
+                <option>Summary</option>
+                <option>Bar Charts</option>
+                <option>Trend</option>
+                <option>Variability</option>
+                <option>Sequential Difference</option>
+                <option>Direct Difference (to hovered matrix)</option>
+            </select>
+        </div>
+        <div id="chartTimeline" style="margin-top:20px"></div>
+        <div id="pilesPlot" height="1000"></div>
+    </div>
+
+        <script src="lib/d3.min.js"></script>
+        <script src="lib/jquery.js"></script>
+        <script src="lib/colors.js"></script>
+        <script src="lib/science.js"></script>
+        <script src="lib/reorder.js"></script>
+        <script src="lib/jstorage.js"></script>
+        <script src="lib/three.min.js"></script>
+        <script src="lib/glUtils.js"></script>
+        <script src="lib/OrbitControls.js"></script>
+        
+        <script src="classes/pile.js"></script>
+        <script src="classes/matrix.js"></script>
+        <script src="classes/timeline.js"></script>
+        <script src="classes/slider.js"></script>
+        <script src="classes/PileTools.js"></script>
+        <script src="classes/sessions.js"></script>
+        <script src="classes/pileutils.js"></script>
+        <script src="classes/animations.js"></script>
+        
+        <script src="fonts/gentilis_bold.typeface.js"></script>
+        <script src="fonts/gentilis_regular.typeface.js"></script>
+        <script src="fonts/optimer_bold.typeface.js"></script>
+        <script src="fonts/optimer_regular.typeface.js"></script>
+        <script src="fonts/helvetiker_bold.typeface.js"></script>
+        <script src="fonts/helvetiker_regular.typeface.js"></script>
+        <script src="fonts/droid/droid_sans_regular.typeface.js"></script>
+        <script src="fonts/droid/droid_sans_bold.typeface.js"></script>
+        <script src="fonts/droid/droid_serif_regular.typeface.js"></script>
+        <script src="fonts/droid/droid_serif_bold.typeface.js"></script>
+
+        <script src="http://www.macwright.org/simple-statistics/simple_statistics.js"></script> 
+
+        <script type="x-shader/x-vertex" id="vertexshader">
+           attribute vec3 customColor;
+           varying vec3 vColor;
+           void main() {
+              vColor = customColor;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+           }
+        </script>
+        <script type="x-shader/x-fragment" id="fragmentshader">
+           varying vec3 vColor;
+           void main() {
+             gl_FragColor = vec4( vColor, 1);
+           }
+        </script>
+ <script>
+
+
+
+    // SETTINGS
+    var SHOW_MATRICES = 1000;
+    var FILE = "data/Parkinsons_Patient_RC4101_1_graphdat.json"
+    var SHOW_ANTICORRELATION = false;
+    var PRE_PILE = false;
+    var CELL_THRESHOLD = 0.0; // only cells above are shown
+    var SNAKE = true;
+    var TIMELINE_HEIGHT = 130;
+    // var TIMELINE_HEIGHT = 0;
+    var DIAGONAL_VALUE = 0.11;
+    var SVG_MENU_HEIGHT = 30;
+    var LABEL_DIST = 60;
+    var LABEL_WIDTH = 130;
+    // var CELL_SIZE = 10
+    var CELL_SIZE = 6
+    var CELL_SIZE_HALF = CELL_SIZE/2;
+    var PREVIEW_SIZE = 3
+    var MARGIN_TOP = 70;
+    var MARGIN_BOTTOM = 30;
+    var MARGIN_RIGHT = 20;
+    var MARGIN_LEFT = 80;
+    var MATRIX_GAP_VERTICAL = 30;
+    var MATRIX_GAP_HORIZONTAL = 10;
+    var PILE_TOOL_SIZE = 15
+    var svg, svgTimeline, svgMenu;
+
+    // Animation
+    var FPS = 20
+    var DURATION = 500
+
+
+    var waitWindow // shown when server calculates similarity
+
+    // var _courseWidth = $(window).width() - MARGIN_LEFT - MARGIN_RIGHT; 
+    // var _courseHeight = $(window).height() +200//- MARGIN_LEFT - MARGIN_RIGHT; 
+    var _courseWidth = $(window).width() - 40 
+    var _courseHeight = $(window).height() 
+
+    var dynamicdata;
+    var graphMatrices // graph matrices
+    var adjacentDistances;
+    var maxDistance = 0;
+    var pilingMethod = 'clustered'
+    var matrixStrings = ''
+
+    var piles = []; // contains all piles. Each pile contains matrices, not indices
+    var matrixPos = []; // index of pile in layout array
+    var matrices = []; // contains all matrices 
+    var matricesPileIndex = []; // contains pile index for each matrix. 
+
+    var hoveredMatrix;
+    var draggingMatrix; // index of currently dragged matrix (for matrices[])
+    var selectedMatrices = [];
+    var dragActive = false;
+    var hoveredGapPile = undefined
+    var openedPileRoot = undefined
+    var openedPileMatrices = []
+
+    var activePile; // pile that contains last mouse hovered matrix
+    var activeMatrixInPileIndex; // index of last hovered matrix in pile
+    var matrixGapMouseover = false;
+
+    var timeline;
+
+    var nodes = []; 
+    var focusNodes = [] // currently visible nodes (changed by the user)
+            
+    var _matrixWidth
+    var _matrixWidthHalf
+
+    var rightClick = false;
+
+    var _cols;
+
+    var shiftDown = false;
+
+    var _isLoadedSession = false
+    var _isSavedSession = false
+
+    // var START_ROW = 0;
+    // var END_ROW = 0;
+    // var START_COL = 0;
+    // var END_COL = 0;
+
+    var MODE_SUMMARY = 0
+    var MODE_BARCHART = 1
+    var MODE_TREND = 2
+    var MODE_VARIABILITY = 3
+    var MODE_DIFFERENCE = 4
+    var MODE_DIRECT_DIFFERENCE = 5
+
+    var ORDER_DATA = 0
+    var ORDER_GLOBAL = 1
+    var ORDER_LOCAL = 2
+    var orderMenu = document.getElementById('allNodeOrder')
+    var coverMatrixMenu = document.getElementById('allCover')
+    var allPileOrdering = []
+    var focusNodeAllPileOrdering = [] // array containing the orderings for all piles, when not all nodes are focused on
+
+    var _zoomFac = 1
+
+    var slider;
+
+    var pileIDCount = 0;
+
+    var startPile = 0;
+    // var this.zoomedMatrix = null;
+
+    var maxValue = 0
+
+
+    var cellValue = d3.scale
+    	.linear()
+        // .log()
+        .range([0,1])
+        .nice()
+        
+    var SESSION_NAME;
+
+    // var _pileToolsVisible = true
+
+
+    labelTextSpec.size = CELL_SIZE-1
+
+    // Load available files
+    // var csvRequest 
+    var fileNames = [];
+
+    $.get('../data', function( data ) {
+        var list = data.split('href="') 
+        for(var i=0 ; i<list.length ; i++){
+            if(list[i].indexOf('.dyjson') == -1) continue
+            $("#fileSelection")
+                .append('<option>../data/' + list[i].split('"')[0] + '</option>')
+        }
+    });
+
+
+    // If the user changes the focus nodes, matrix similarity must be recalculated before automatic piling. Distance calculation is performed on the server. 
+    var dMat = [];
+    var pdMat = []; // contains similarity between piles
+    var pdMax = 0;
+    var pileDistanceColor // value range for similarity 
+
+    retrieveSessions();
+
+
+    // find an ordering for all nodes that shows clustering across the 
+    // sum of all individual time step matrices.
+    function calculateGlobalOrder(graph) {
+        var max = 0;
+        var globalMatrix = [];
+        for (var i=0 ; i<graph.times[0].matrix.length ;i++) {
+            globalMatrix[i] = [];
+            for (var j=0 ; j< graph.times[0].matrix[i].length; j++) {
+                globalMatrix[i][j] = 0;
+            }
+        }
+
+        for (var t=0 ;t < Math.min(SHOW_MATRICES,graph.times.length) ;t++) {
+            for (var i=0 ;i < graph.times[t].matrix.length ;i++) {
+                for (var j=0; j < graph.times[t].matrix[i].length ;j++) {
+                	if(graph.times[t].matrix[i][j] > CELL_THRESHOLD){
+	                    // graph.times[t].matrix[i][j]++
+						// graph.times[t].matrix[j][i]++
+                        globalMatrix[i][j] += Math.abs(graph.times[t].matrix[i][j])
+                        globalMatrix[j][i] += Math.abs(graph.times[t].matrix[j][i])
+                        max = Math.max(max, graph.times[t].matrix[i][j]);
+                    }
+                }
+            }
+        }
+        // CELL_THRESHOLD++
+        cellValue.domain([CELL_THRESHOLD, max])
+
+        // 2) Reorder
+        var leafOrder = reorder.leafOrder()
+          .distance(science.stats.distance.manhattan)(globalMatrix);
+
+        var order = []
+        leafOrder.forEach(function (lo, i) {
+            order[i] = lo;
+        });
+
+        return order;
+    }
+
+    function init(){
+
+        FILE = location.search.split('data=')[1]
+
+        var d=new Date();
+        SESSION_NAME = FILE + "-" 
+            + d.getDate() 
+            + "/" + (d.getMonth()+1) 
+            + "/" + d.getYear() 
+            + "-" + d.getHours() + ":" + d.getMinutes();
+
+        loadFile(FILE)
+    }
+
+    function exportSession(){
+
+        if(!SESSION_NAME){
+            var menu = $('#sessionSelection')[0];
+            SESSION_NAME = menu.options[menu.selectedIndex].text;
+        }
+        // save before export
+        saveSession()
+
+        var dump = getSessionDump(SESSION_NAME);
+        var url = 'data:text/json;charset=utf8,' + encodeURIComponent(dump);
+        window.open(url, '_blank');
+        window.focus();
+    }
+    
+    function exportPileMeasures(){
+        var mean
+        var dump = ""
+        dump += '"Data name "' + SESSION_NAME + '\n'
+        dump += '"Number of piles", ' + piles.length + '\n'
+        for(var p=0 ; p<piles.length ; p++){
+            mean = 0
+            for(var t=0 ; t<piles[p].size() ; t++){
+                for(var i=0 ; i<nodes.length ; i++){
+                    for(var j=i ; j<nodes.length ; j++){
+                       mean += piles[p].getMatrix(t).matrix[i][j] 
+                    }
+                }
+            }
+            mean /= ((nodes.length * nodes.length + nodes.length) / 2) * piles[p].size()
+            dump += '"Pile ' + p + '", ' + piles[p].size() + ', ' + mean + '\n'
+        } 
+
+        var url = 'data:text/csv;charset=utf8,' + encodeURIComponent(dump);
+        
+        window.open(url, '_blank');
+        window.focus();
+    }
+
+    
+
+
+    // WebGL setup: 
+    // _courseHeight = 5000
+    var scene = new THREE.Scene();
+    var w = _courseWidth;
+    var h = _courseHeight;
+    var camera = new THREE.OrthographicCamera(
+            _courseWidth / - 2, 
+            _courseWidth / 2, 
+            _courseHeight / 2, 
+            _courseHeight / - 2, 
+            1, 11) 
+    scene.add(camera); 
+    camera.position.z = 10;
+    camera.position.x = _courseWidth/2 - 50;
+    var topScrollLimit = MARGIN_TOP -_courseHeight/2
+    camera.position.y = topScrollLimit;
+
+    var renderer = new THREE.WebGLRenderer({antialias: true})
+    renderer.setSize(_courseWidth, _courseHeight)
+
+    renderer.setClearColor( 0xffffff, 1);
+    var canvas = renderer.domElement;
+    canvas.addEventListener('click', function(e){
+        clickCanvas(e)
+    })
+    canvas.addEventListener('dblclick', function(e){
+        doubleClickCanvas(e)
+    })
+    canvas.addEventListener('mousedown', function(e){
+        canvasMouseDown(e)
+    })
+    canvas.addEventListener('mouseup', function(e){
+        canvasMouseUp(e)
+    })
+    canvas.addEventListener('mousemove', function(e){
+        mouseMove(e)
+    })
+    canvas.addEventListener('mousewheel', mouseWheelChanged, false );
+
+
+    var origin = new THREE.Vector3()
+    var raycaster = new THREE.Raycaster()
+    var pileMeshes = []
+
+
+    init()
+    
+    function render(){
+
+        var d = new Date();
+        var begin = d.getTime()
+        renderer.render(scene, camera)
+        d = new Date();
+        // console.log('>>>> RENDERED ', (d.getTime() - begin), ' ms.')
+        for(var i=0 ; i<visiblePileTools.length ; i++){
+        	scene.remove(visiblePileTools[i])
+        }
+    }
+
+    function loadFile(file){
+    
+        console.log('loadFile')
+        $('#pilesPlot').append(canvas)
+
+        // $('#sessionName').val(SESSION_NAME)
+        SNAKE = false
+        FILE = file;
+
+        console.log(file);
+        $('#menuLoadData').remove();
+        $('#sessions').css({ opacity: 1});
+
+
+        d3.json(file,function (graph) 
+        {
+
+			svgTimeline = d3.select("#chartTimeline")
+                .append("svg")
+                .attr("width", _courseWidth)
+                .attr("height", TIMELINE_HEIGHT + 20);
+
+
+
+
+            // READ DATA
+            dynamicdata = graph;
+
+            nodes = graph.nodes;
+    		var s
+            for(var i=0 ; i<nodes.length ; i++){
+                focusNodes.push(i)
+		        s = nodes[i].name  +''
+		        nodes[i].name = s.trim()
+            }
+
+            graphMatrices = []     
+            for(var i=0 ;i<graph.times.length && i<SHOW_MATRICES;i++){
+                graphMatrices.push(graph.times[i].matrix)
+            }        
+
+            calculateDistanceMatrix()
+            
+            // INIT LAYOUT
+            var n = graph.nodes.length;
+            _matrixWidth = n * CELL_SIZE;
+            _matrixWidthHalf = _matrixWidth/2;
+
+            highlightFrame = GLUtils.createRectFrame(_matrixWidth, _matrixWidth, 0xff8100, 10)
+
+
+
+            _cols = Math.floor(
+                (_courseWidth - MARGIN_LEFT - MARGIN_RIGHT) / (_matrixWidth + MATRIX_GAP_HORIZONTAL)
+            )-1
+            // console.log('cols',_cols)
+            // _cols = 12
+            END_ROW = n-1;
+            END_COL = n-1;
+
+            allPileOrdering[ORDER_DATA] = []
+            allPileOrdering[ORDER_GLOBAL] = []
+            for(var i=0 ; i<nodes.length ; i++){
+                allPileOrdering[ORDER_DATA].push(i)
+            }
+
+            allPileOrdering[ORDER_GLOBAL] = calculateGlobalOrder(graph);
+          
+            var menuX = MARGIN_LEFT;
+
+            // svg = d3.select("#pilesPlot")
+            //     .append('svg')
+            //     .attr("width", _courseWidth)
+            //     .attr("height", 100)
+
+            // INIT PILES (each single matrix is a pile)
+            if (PRE_PILE) {
+                for (var i = 0; i < graph.clusters.length; i++)
+                    piles.push(new Pile(pileIDCount++, scene, allPileOrdering[orderMenu.selectedIndex], _zoomFac));
+                // calculatePiles();
+            } else {
+                for (var i = 0; i < Math.min(SHOW_MATRICES, graph.times.length) ; i++) {
+                    var p = new Pile(pileIDCount++, scene, allPileOrdering[orderMenu.selectedIndex], _zoomFac);
+                    piles.push(p);
+                }
+            }
+             
+           
+            // INIT MATRICES
+            for (var t = 0 ; t < Math.min(SHOW_MATRICES, graph.times.length) ; t++) {
+                // Obtain pile for new matrix
+                var p = piles[t]
+                if(PRE_PILE){
+                    for (var i = 0; i < graph.clusters.length; i++){
+                        if(graph.clusters[i].indexOf(t) > -1){
+                            p = piles[i];
+                            break;
+                        }
+                    }
+                }
+                // Create matrix
+                var matrix = new Matrix(
+                    t,
+                    graph.times[t].matrix
+                    )
+
+                matrices.push(matrix);
+                p.addMatrices([matrix]);
+                p.draw()
+            }
+
+            updateLayout(0, false);
+
+            // CREATE TIMELINE
+            timeline = new Timeline();
+            timeline.updateLayout();
+            timeline.updateNodeOrder(allPileOrdering[orderMenu.selectedIndex]);
+
+
+            if(_isLoadedSession)
+                finalizeLoadSession()
+
+            // create wait window    
+            waitWindow = svgTimeline.append('g')
+                .attr('id', 'waitWindow')
+                .attr('transform', 'translate('+(_courseWidth/2 -200) + ',' +20 + ')')
+
+            waitWindow.append('rect')
+                .attr('x', 0).attr('y', 0)
+                .attr('width', 400)
+                .attr('height',100)
+                .style('fill', '#fff')
+                .style('stroke', '#000')
+                .style('opacity', .98);
+
+            waitWindow.append('text')
+                .attr('x', 100)
+                .attr('y', 40)
+                .attr('class', 'infotext')
+                .text('Please wait ...')
+
+            showWait(false)
+
+            // RENDER
+            render()
+     
+            savePilingHistory()
+
+            // selectNodes()
+            // calculatePrecisePiling()
+            // exportPileMeasures()
+        });
+    }
+
+    var highlightFrame 
+
+    function highlightPile(pile){
+        highlightFrame.position.set(pile.x, pile.y, 0)
+        highlightFrame.visible = true
+        scene.add(highlightFrame)
+    }
+    function highlightNoPile(){
+        scene.remove(highlightFrame)
+    }
+
+
+
+    function focusOn(nodes){
+    	focusNodes = nodes
+
+    	// update sizes
+		_matrixWidth = CELL_SIZE * focusNodes.length  	
+		_matrixWidthHalf = _matrixWidth/2  	
+ 	 	// _cols = Math.floor((_courseWidth- MARGIN_RIGHT) / (_matrixWidth + MATRIX_GAP_HORIZONTAL))
+        _cols = Math.floor((_courseWidth - MARGIN_LEFT - MARGIN_RIGHT) / (_matrixWidth + MATRIX_GAP_HORIZONTAL))-1
+		calculateDistanceMatrix()
+          
+ 	 	// update highlight frame
+		scene.remove(highlightFrame)
+		highlightFrame = GLUtils.createRectFrame(_matrixWidth, _matrixWidth, 0x000000, 10)
+		scene.add(highlightFrame)
+
+		// redraw
+		for(var i=0 ; i<piles.length ; i++){
+			piles[i].updateFrame()
+		}
+		redrawPiles(piles)
+    	this.updateLayout(0, true)
+		render()
+
+
+    }
+
+
+    function calculateDistanceMatrix(){
+        dMat = []
+        
+		var data = pileUtils.calculateDistance(graphMatrices, focusNodes)
+        dMat = data.distanceMatrix
+        pdMat = data.distanceMatrix
+        maxDistance = data.maxDistance;
+        pdMax = maxDistance // initialize 
+        // pileDistanceColor.domain([0,pdMax])
+
+        // ADD SLIDER
+        if(slider)
+            slider.destroy()
+        slider = new Slider(svgTimeline, TIMELINE_HEIGHT, 0, maxDistance);  
+
+        setPileSliderTick(0.25, graphMatrices)
+        setPileSliderTick(0.5, graphMatrices)
+        setPileSliderTick(0.75, graphMatrices)
+    }
+
+    function setPileSliderTick(frac, matrices){
+        var value = maxDistance * frac
+		var piling = pileUtils.calculateClusterPiling(maxDistance * frac, matrices, dMat)
+		var label = (maxDistance * frac).toFixed(2) + ' (' + (piling.length) + ')'
+        slider.setTick(label, maxDistance * frac)
+
+    }
+
+    function calculatePrecisePiling(){
+        var value = parseFloat($('#precisePilingValue').val())
+        calculatePiles(value)
+        slider.setSliderKnob(value)
+    }
+
+    function selectNodes(){
+	    var value = $('#filteredNodes').val()
+	    var desiredNodes = value.split(',')
+		for(var i=0 ; i<desiredNodes.length ; i++){
+			desiredNodes[i] = desiredNodes[i].trim()
+		}
+	    var newNodes = []
+        for(var i=0 ; i<nodes.length ; i++){
+        	for(var j=0 ; j<desiredNodes.length ; j++){
+        		if(desiredNodes[j] == nodes[i].name)
+        			newNodes.push(i)
+        	}
+        }
+        focusOn(newNodes)
+    }
+
+    function showWait(b){
+        if(b){
+            svgTimeline.append(function () { return waitWindow[0][0] }) 
+        }else{
+            d3.select('#waitWindow').remove();            
+        }
+    }
+
+    ////////////////////////////////
+    /// PILING
+
+    var pilingAnimations = []
+    var interval
+    /* Starts all animations in pilingAnimations array.*/
+    function startAnimations(){
+        console.log('----> START ANIMATIONS')
+        clearInterval(interval)                
+        interval = setInterval(function(){
+            for(var i=0 ; i<pilingAnimations.length ; i++){
+                pilingAnimations[i].step()
+                if(pilingAnimations[i].done)
+                    pilingAnimations.splice(i,1)
+            }
+            if(pilingAnimations.length == 0){
+                clearInterval(interval)
+                interval = undefined
+                updateLayout()
+                pilingAnimations = []
+                savePilingHistory()
+                console.log('----> ANIMATIONS DONE')      
+            }
+            render() 
+        }, 500/FPS)
+    }
+
+    /** Piles a set of matrices onto a target pile 
+    removes it from source pile, and 
+    updates the layout. 
+    If animated=true, a PilingAnimation is created and stored
+    in the pilingAnimations array. Animations are started by
+    calling startPilingAnimations()
+     */
+    function pile(mats, targetPile, animate)
+    {   
+        if(!animate) animate = false
+        if(animate){
+            pilingAnimations.push(new PilingAnimation(targetPile, mats))
+        }else{
+            var matricesToPile = mats.slice(0); 
+            var insertIndex;
+            var pos;
+            var m;
+            var sourcePile, spi; // source-pile-index
+            var sourcePiles = []
+            for (var i = 0; i < matricesToPile.length; i++)
+            {
+                m = matricesToPile[i]; 
+                sourcePile = m.pile;
+                sourcePile.removeMatrices([m]);
+                if(sourcePile.size() == 0 && sourcePile != targetPile){
+                    destroyPile(sourcePile)
+                }
+            }
+
+
+            targetPile.addMatrices(matricesToPile);
+            sortTime(targetPile)
+
+            redrawPiles(piles)
+            updateLayout(0, true)
+            timeline.updateLayout();    
+            render()
+        }
+    }
+
+
+    /*Piles all matrices prior to the selected one, including the selected one.*/
+    function pileBackwards(p)
+    {
+        var i = piles.indexOf(p)
+        var mats = []
+        var num
+        if(p.size() == 1){
+	        // console.log('pile matrices')
+	        for(var j=i ; j>=0 ; j--){
+	            if(j==0 || piles[j-1].size() > 1){
+	                pile(mats, piles[j], $('#animateCheckBox').is(':checked'))
+                    startAnimations()
+	                return
+	            }else{
+	                mats.push.apply(mats, piles[j].getMatrices())
+	            }
+	        }
+    	}else{
+    		if(piles.indexOf(p) > 0){
+	    		pile(p.pileMatrices, piles[piles.indexOf(p)-1], $('#animateCheckBox').is(':checked'))
+   			}
+    	}
+        startAnimations()
+
+    }
+
+    function depile(pile, animated){
+        var startPos = {x:0, y:0} 
+        var newPiles = []
+
+        if(animated){
+            startPos.x = pile.x
+            startPos.y = pile.y
+        }
+       var mats = [];
+        var ix = piles.indexOf(pile);
+        mats.push.apply(mats, pile.pileMatrices)
+        if(mats.length == 1) return;
+
+        for(var i=mats.length-1 ; i>0 ; i--){
+            pile.removeMatrices([mats[i]])                           
+            var pNew = new Pile(pileIDCount++, scene, allPileOrdering[orderMenu.selectedIndex], _zoomFac);
+            pNew.colored = pile.colored;
+            piles.splice(ix+1, 0, pNew);
+
+            pNew.addMatrices([mats[i]])
+
+            pNew.draw();
+
+            newPiles.push(pNew)
+        }
+
+        if(orderMenu.selectedIndex == ORDER_LOCAL)
+            pile.setNodeOrder(pile.calculateLocalOrder())
+        
+        pile.draw()
+        this.updateLayout(0, true);
+        timeline.updateLayout();
+        
+        if(animated){
+            console.log('depile animated')
+            pilingAnimations.push(new DepileAnimation(newPiles, startPos))
+            startAnimations()               
+        }
+        
+        render()
+
+    }
+
+
+   
+    // Splits a pile at the position of the passed matrix. 
+    // The passed matrix becomes the base for the new pile 
+    function splitPile(matrix, animated)
+    {
+        console.log('split pile', animated)
+        if(!animated){
+            var pSource = matrix.pile;
+            var pNew = new Pile(pileIDCount++,scene, allPileOrdering[orderMenu.selectedIndex], _zoomFac);
+            pNew.colored = pSource.colored;
+            piles.splice(piles.indexOf(pSource)+1, 0, pNew);
+
+            var m = [];
+            for(var i=pSource.getMatrixPosition(matrix) ; i<pSource.size() ; i++){
+                m.push(pSource.getMatrix(i))
+            }
+
+            pile(m, pNew);
+            updateLayout(piles.indexOf(pNew)-1, true);
+            if(orderMenu.selectedIndex == ORDER_LOCAL)
+                pNew.setNodeOrder(pNew.calculateLocalOrder())
+
+            pNew.draw();
+            pSource.draw();
+
+            render()
+            savePilingHistory()
+        }else{
+            pilingAnimations.push(new SplitAnimation(matrix))
+            console.log('split pile animated:')
+            startAnimations()               
+        }
+
+    }
+
+
+
+    function removeFromPile(pile){
+
+    }
+
+    function deselectAllMatrices()
+    {
+        for(var i in selectedMatrices)
+        {
+            selectedMatrices[i].frame.attr("class", "matrixbackground")
+        }
+        selectedMatrices = [];
+    }
+
+
+    // Update layout depending on order of piles in piles array.
+    // Starts updating at pileIndex.
+    var PILING_DIRECTION = 'vertical'
+    // var PILING_DIRECTION = 'horizontal'
+    function updateLayout(pileIndex, animate)
+    {
+		var pos, p;
+	    if(PILING_DIRECTION == 'vertical'){
+	        for(var i=pileIndex ; i<piles.length ; i++){
+	            p = piles[i];
+
+	            pos = getLayoutPosition(i);
+	            p.moveTo(pos.x, pos.y, false)
+	        }
+     	}else{
+     	    var px
+	        for(var i=pileIndex ; i<piles.length ; i++){            
+	            p = piles[i];
+	            pos = this.getLayoutPosition(i);
+	            px = pos.x;
+	            py = pos.y;
+	            p.moveTo(pos.x, pos.y)
+	        }
+     	}
+    }
+
+ 
+
+    // index indicates the matrix index, not its position 
+    // in the layout
+    function getMatrixPosition(matrixIndex)
+    {
+        return getLayoutPosition(matrixPos[matrixIndex])
+    }
+
+    function getLayoutPosition(index)
+    {
+    	if(PILING_DIRECTION == 'horizontal'){
+    		var x=MARGIN_LEFT, y=MARGIN_TOP;
+	        for(var i=0 ; i<index ; i++){
+	            x += _matrixWidth + (piles[i].size()*2) + MATRIX_GAP_HORIZONTAL + 10
+	            if((x+_matrixWidth + (piles[i].size()*2) + MATRIX_GAP_HORIZONTAL) > _courseWidth){
+	                x = _matrixWidth;
+	                y += _matrixWidth + MATRIX_GAP_VERTICAL; 
+	            }
+	        }
+	        return {x: x, y: y}
+    	}
+		else{
+			var col = Math.floor(index % _cols);
+        
+	        var y = MARGIN_TOP
+	        var currh = 0
+	        var temp  
+	        for(var i=0; i<piles.length; i++)
+	        {   
+	            if(i>0 && i % _cols == 0){ // when new row starts
+	                if(i>index){
+	                    break;
+	                }else{
+	                    y += currh + _matrixWidth + MATRIX_GAP_VERTICAL;
+	                    currh = 0;
+	                }
+	            }
+	            temp = piles[i].size() * 2 //2 = preview height
+	            if(temp > currh){
+	                currh = temp
+	            }
+	        }
+
+            return {
+	            x: MARGIN_LEFT + col * (_matrixWidth + MATRIX_GAP_HORIZONTAL) + _matrixWidthHalf, 
+	            y: y + currh}
+			}    
+    }
+
+    // Sorts matrices in pile according to time
+    function sortTime(pile){
+        pile.pileMatrices.sort(matrixTimeComparator)
+    }
+
+    function matrixTimeComparator(a,b){
+        return parseInt(a.id) - parseInt(b.id); 
+    }   
+
+    function hidedistance(){
+        for(var i in matrices){
+            matrices[i].g_course.style("opacity", "1") 
+        }
+    }
+
+ 
+    function setPileMode(mode, piles)
+    {
+        for(var i=0; i < piles.length; i++) 
+            piles[i].setCoverMatrixMode(mode);
+    }
+
+    function setSimilarityPiling(value){
+         calculatePiles(value);
+    }
+
+    function destroyPile(p){
+		p.destroy()
+        var i = piles.indexOf(p)
+        piles.splice(i,1)
+        if(previousHoveredPile == p)
+        	previousHoveredPile = undefined
+        if(hoveredGapPile = p)
+        	hoveredGapPile = undefined 
+    }
+
+    function calculatePiles(value)
+    {
+        showWait(true);
+        setSliderActive(false)
+        var newpiling = pileUtils.calculateClusterPiling(value, matrices, dMat)
+
+        var label = value.toFixed(2).toString() + ' (' + (newpiling.length) + ')'
+        slider.setSliderLabel(label) 
+
+        setPiling(newpiling)                    
+        savePilingHistory()
+    
+    }
+
+    function getCurrentPiling(){
+        var piling = []
+        for(var i=0 ; i<piles.length ; i++){
+            piling.push(matrices.indexOf(piles[i].getMatrix(0)))
+        }       
+        // console.log('currentPiling', piling)
+
+        return piling 
+    }
+
+    function setPiling(newpiling){
+        console.log('setPiling', newpiling)
+        for(var i=0 ; i<piles.length ; i){
+            destroyPile(piles[i])
+        }
+
+        piles = [];
+        
+        var mats = []
+        var l=0
+        var p 
+        // remove all previous piles
+        // for(var i=0 ; i<piles.length ; i){
+        //     piles[i].destroy()
+        // }
+        for(var i=1 ; i<=newpiling.length ; i++){
+            mats = [];
+            if(i<newpiling.length){
+                for(var j=l ; j<newpiling[i] ; j++){
+                    mats.push(matrices[j])
+                }
+            }else if(l < matrices.length){
+                for(var j=l ; j<matrices.length ; j++){
+                    mats.push(matrices[j])
+                }                
+            }else{
+                break;
+            }
+            p = new Pile(pileIDCount++, scene, allPileOrdering[orderMenu.selectedIndex], _zoomFac)
+            piles.push(p);
+            p.addMatrices(mats)
+            if(orderMenu.selectedIndex == ORDER_LOCAL)
+                p.setNodeOrder(p.calculateLocalOrder())
+            sortTime(p)            
+            p.setCoverMatrixMode(coverMatrixMenu.selectedIndex);
+            p.draw()
+            l = newpiling[i];
+        }
+
+
+        updateLayout(0, false);
+        timeline.updateLayout(0,false);
+        setSliderActive(true)
+        showWait(false);
+    
+        render()
+    }
+
+    function showTools(pile) {
+        // // console.log(piles.indexOf(pile))
+        // pileTools.pile = pile; 
+        // var tools = this.svg.selectAll(".pileTools")
+        //     .data(pileTools.filter(function(d,i){
+        //         return d.single || pile.size() > 1;}));
+       
+        // var added = tools.enter().append('g')
+        //     .style('opacity', 0)
+        //     .attr('class', 'pileTools');
+        // added
+        //     .append("rect")
+        //     .attr('width', 15)
+        //     .attr('height', 15)
+        //     .attr('rx', 3)
+        //     .attr('ry', 3)
+        //     .attr('fill', function (d) {
+        //         return d.color;
+        //     })
+        //     .on('mouseover', function () {
+        //         pileTools.mouseover = true;
+        //         tools.style('opacity', 1);
+        //     })
+        //     .on('mouseout', function () {
+        //         pileTools.mouseover = false;
+        //         tools.style('opacity', 0);
+        //         hideTools(pileTools.pile.svg)
+        //     })
+        //     .on('click', function (d) {
+        //         d.doit([pileTools.pile], piles);
+        //     });
+        // added.append('title').text(function (d) { return d.name; });
+        // added.append('text')
+        //     .attr('class','toolLabel')
+        //     .attr('fill', 'white')
+        //     .attr('pointer-events','none');
+
+        // // tools.select('rect')
+        // //     .attr('x', function (d, i) {
+        // //         var x = pileTools.pile.x + pileTools.pile._matrixWidth - (i + 1) * 15;
+        // //             return x;
+        // //         })
+        // //     .attr('y', this.y + this._matrixWidth);
+        
+        // // tools.select('text')
+        // //     .attr('x', function (d, i) {
+        // //         var x = pileTools.pile.x + pileTools.pile._matrixWidth - (i + 1) * 15 + 4;
+        // //         return x;
+        // //     })
+        // //     .attr('y', this.y + this._matrixWidth + 10)
+        // //     .text(function(d) { return d.name[0] })
+
+        // tools.select('rect')
+        //     .attr('y', pile.y + this._matrixWidth)
+        //     .attr('x', function(d,i){ 
+        //         return pile.x + (i * 15)});
+        
+        // tools.select('text')
+        //     .attr('y', function (d, i) {
+        //         var y = pile.y + pile._matrixWidth +12 ;
+        //         return y;
+        //     })
+        //     .attr('x', function(d,i){ return pile.x + i*15 +3})
+        //      .text(function(d) { return d.shortCut })
+
+        // tools.transition()
+        //     .style('opacity', 1);
+    }
+
+    function isSameOrdering(o1, o2){
+        
+        if(!o1 || !o2) return false
+        if(o1.length != o2.length) return false
+
+        var same = true;
+        for(var i=0 ; i<o1.length ; i++){
+            if(o1[i] != o2[i]){
+                same = false;
+                break
+            }
+        }
+        return same;
+    }
+
+
+    function distance(m1, m2, focusNodes){
+        var d = 0; 
+        var a, b;
+        for(var i=0 ; i<focusNodes.length ; i++){
+            a = focusNodes[i]
+            for(var j=i ; j<focusNodes.length ; j++){
+                b = focusNodes[j]
+                d += Math.pow(m1.matrix[a][b] - m2.matrix[a][b],2)
+            }
+        }
+        return Math.sqrt(d);
+    }
+
+    function setNodeOrder(piles, order){
+        for(var i=0 ; i<piles.length ; i++){
+            piles[i].setNodeOrder(order);
+        }
+    }
+
+    function setPilingMethod(method){
+        pilingMethod = method;
+        if(slider)
+            slider.destroy()
+        slider = new Slider(svgTimeline, TIMELINE_HEIGHT, 0, maxDistance);  
+
+        setPileSliderTick(0.25, matrixStrings)
+        setPileSliderTick(0.5, matrixStrings)
+        setPileSliderTick(0.75, matrixStrings)
+    }
+
+    // takes a seed pile and shows how similar
+    // all the other piles/matrices are. 
+    // the similarity between two piles is the
+    // mean of the distances between all matrices 
+    // from p1 to all matrices to p2 (bigraph) 
+    function showMatrixSimilarity(pile){
+        var d;
+        var i = piles.indexOf(pile)
+        for(var j=0 ; j<piles.length; j++){
+            piles[j].showSimilarity(pileDistanceColor(pdMat[i][j]))
+        }
+    }
+    function unshowMatrixSimilarity(){
+        var d;
+        for(var j=0 ; j<piles.length; j++){
+            piles[j].resetSimilarity()
+        }
+    }
+
+
+    // function doubleClickCanvas(e){
+    // 	e.preventDefault();
+
+    // 	if(hoveredPile && hoveredPile != openedPile){
+    //         openedPileRoot = hoveredPile
+    // 		var p = hoveredPile
+    // 		hoveredPile = undefined
+    // 		depile(p, $('#animateCheckBox').is(':checked'))
+
+    // 	}else{
+    //         openedPile = hoveredPile
+    //         var p = hoveredPile
+    //         hoveredPile = undefined
+    //         depile(p, $('#animateCheckBox').is(':checked'))    
+    //     }
+
+    // }
+
+
+
+
+
+    // CANVAS MOUSE INTERACTION
+
+    function clickCanvas(e){
+
+		if(mouseDown)
+			return	
+	
+        if(hoveredTool){
+            hoveredTool.doit(piles, hoveredTool.pile)
+            render()
+            hoveredTool = undefined
+        }else
+        if(hoveredGapPile){
+            var p=hoveredGapPile
+            hoveredGapPile = undefined
+            pileBackwards(p)
+            savePilingHistory()
+
+        }else
+        if(hoveredMatrix){
+            var p=hoveredMatrix
+        	hoveredMatrix = undefined
+            splitPile(p,$('#animateCheckBox').is(':checked'))
+            savePilingHistory()
+        }
+    }
+
+    var dragStartPos //
+    var mouseDown = false
+    var mouseDownTimer 
+    var lassoActive = false
+    var mouseWentDown = false
+    function canvasMouseDown(e){
+        mouseWentDown = true
+    	mouseDown = true
+    	dragStartPos = {
+    		x: mouse.x, 
+    		y: mouse.y
+        }
+	
+        // test if mouse dwells on a matrix -> open pile
+        if(hoveredPile && hoveredPile.size() > 1 && hoveredMatrix == undefined){
+            console.log('dwell on matrix')
+            mouseDownTimer = setInterval(function(){
+                openedPileRoot = hoveredPile
+                openedPileMatricesNum = hoveredPile.pileMatrices.length-1
+                depile(openedPileRoot, $('#animateCheckBox').is(':checked'))
+                clearInterval(mouseDownTimer)
+            }, 500)            
+        }
+    }
+
+    function canvasMouseUp(e){
+
+        e.preventDefault()
+        
+        scene.remove(lassoObject)
+
+        if(openedPileRoot){
+            var mats = []
+            var openedPileIndex = piles.indexOf(openedPileRoot)
+            console.log('openedPileMatricesNum', openedPileMatricesNum)
+            for(var i=0 ; i<=openedPileMatricesNum ; i++){
+                mats.push(piles[openedPileIndex+i].pileMatrices[0])
+            }
+            pile(mats, piles[openedPileIndex], $('#animateCheckBox').is(':checked'))       
+            // pile(mats, piles[openedPileIndex], true)       
+            startAnimations()
+            openedPileRoot = undefined
+            openedPileMatricesNum = 0
+        }else if(dragPile){
+            // place pile on top of previous pile
+            if(!hoveredPile){
+                var pos = getLayoutPosition(piles.indexOf(dragPile))
+                dragPile.moveTo(pos.x, pos.y, false)
+                dragPile.elevateTo(0)
+            }else{
+                pile(dragPile.pileMatrices, hoveredPile)
+                savePilingHistory()
+            }
+            dragPile = undefined
+
+        }else if(lassoActive){
+        	// Calculate lasso rectangle
+        	if(dragStartPos){
+              	scene.updateMatrixWorld();
+    	        camera.updateProjectionMatrix();
+    	        var x, y
+        		var selectPiles = []
+        		var p =-1
+        		x1 = Math.min(dragStartPos.x, mouse.x)
+                x2 = Math.max(dragStartPos.x, mouse.x)
+                y1 = Math.min(dragStartPos.y, mouse.y)
+                y2 = Math.max(dragStartPos.y, mouse.y)
+                for(var i=0 ; i<piles.length ; i++){
+        			x = piles[i].getPos().x
+        			y = piles[i].getPos().y
+
+        			if(x > x1 && x < x2
+        			&& y > y1 && y < y2 )
+        			{
+        				if(p==-1) p = i
+        				selectPiles.push(piles[i])
+        			}
+        		}
+        		var matrices = []
+        		// console.log(selectPiles.length)
+        		for(var i=0 ; i<selectPiles.length ; i++){
+        			matrices = matrices.concat(selectPiles[i].pileMatrices)	
+        		}
+        		if(matrices.length > 0){
+    	    		// console.log('pile ',matrices.length , ' matices')
+        			pile(matrices, piles[p], $('#animateCheckBox').is(':checked'))		
+                    startAnimations()
+        		}
+        	}
+        }
+    	dragStartPos = undefined
+        mouseDown = false
+        mouseWentDown = false
+        lassoActive = false
+    }
+
+
+    var previousHoveredPile
+    var visiblePileTools = []
+    var hoveredCell;
+    var mouse
+    var hoveredPile
+    var hoverdTool
+    var dragPile // pile that's first matrix is being dragged (on the dragPileDummy)
+    var lassoObject
+    var pileToolVisibleTimer
+    function mouseMove(e)
+    {
+        hoveredTool = undefined
+        e.preventDefault();
+        hoveredMatrix = undefined
+
+        // get mouse coordinates
+        scene.updateMatrixWorld();
+        camera.updateProjectionMatrix();
+
+        mouse = new THREE.Vector3();
+        var dir = new THREE.Vector3();
+
+        mouse.set( ( e.clientX / _courseWidth ) * 2 - 1, - ( e.clientY / _courseHeight ) * 2 + 1, -1 ); // z = - 1 important!
+
+        mouse.unproject( camera );
+        
+        mouse.set(
+            mouse.x - canvas.offsetLeft, 
+            mouse.y + canvas.offsetTop, 
+            1)
+
+        if(dragPile){
+            dragPile.moveTo(mouse.x, -mouse.y, false)
+            dragPile.elevateTo(.9)
+
+            // test for hovered piles
+            hoveredPile = undefined
+
+            // No mouse down (i.e. no dragging enabled)
+            // do the raycasting to find hovered elements
+            dir.set( 0, 0, -1 ).transformDirection( camera.matrixWorld );
+
+            raycaster.set( mouse, dir );
+
+            var testPile = [piles[piles.indexOf(dragPile)-1].mesh]
+            intersects = raycaster.intersectObjects(testPile);
+            if(intersects.length > 0){
+                hoveredPile = intersects[0].object.pile
+            }
+
+        // Test for start a new drag pile 
+        }else if(mouseDown && hoveredPile && piles.indexOf(hoveredPile) > 0 && !lassoActive){
+            // Don't do raycasting. "Freeze" the current state of
+            // highlighte items and move matrix with cursor. 
+            // console.log('hoveredMatrix', hoveredPile.id)
+            dragPile = hoveredPile
+            dragPile.moveTo(mouse.x, -mouse.y, false)
+            dragPile.elevateTo(.9)
+
+        }else{
+            
+            hoveredPile = undefined
+            // No mouse down (i.e. no dragging enabled)
+            // do the raycasting to find hovered elements
+            
+            dir.set( 0, 0, -1 ).transformDirection( camera.matrixWorld );
+
+            raycaster.set( mouse, dir );
+
+            // test for menu-mouse over
+            // console.log('visiblePileTools', visiblePileTools.length)
+            if(visiblePileTools.length > 0){
+                var intersects = raycaster.intersectObjects(visiblePileTools);
+                if(intersects.length > 0){
+                    hoveredTool = intersects[0].object.pileTool
+                    return;
+                }
+            }
+
+            // test for pile mouse over
+            intersects = raycaster.intersectObjects(pileMeshes);
+            if(intersects.length > 0){
+                var pileMesh = intersects[0].object;
+                hoveredPile = pileMesh.pile
+                var x = pileMesh.position.x 
+                var y = pileMesh.position.y
+
+                // TEST FOR PREVIEWS
+                if(mouse.y > y + _matrixWidthHalf){
+                    var d = mouse.y - (y + _matrixWidthHalf)
+                    var i = Math.floor(d/PREVIEW_SIZE)
+                    hoveredPile.showSingle(hoveredPile.getMatrix(i))
+                    hoveredMatrix = hoveredPile.getMatrix(i)
+                }else{  
+                    hoveredPile.showSingle(undefined)    
+                    highlightNoPile()
+                }
+
+                // TEST FOR GAPS
+                if(mouse.x > x + _matrixWidthHalf){
+                    hoveredGapPile = hoveredPile
+                }else{
+                    if(hoveredGapPile){
+                        var p = hoveredGapPile
+                        p.draw()
+                        hoveredGapPile = undefined
+                    }
+                }
+
+                // TEST FOR remove piletools from previous pile
+                // if(previousHoveredPile && previousHoveredPile != hoveredPile){
+                //     previousHoveredPile.updateLabels(false)   
+                //     previousHoveredPile.draw()    
+                // }
+                
+                // pileToolVisibleTimer = setInterval(function(){
+                //     // _pileToolsVisible = true
+                //     clearInterval(pileToolVisibleTimer)
+                //     render()
+                // }, 2000)
+                // // pileToolVisibleTimer.start()
+                // highlightPile(hoveredPile)
+
+
+                hoveredPile.draw()         
+
+
+    			hoveredCell = undefined 
+                if(e.shiftKey){
+        	       	// test which cell is hovered.
+                    var col = Math.floor((mouse.x- (x - _matrixWidthHalf)) / CELL_SIZE)
+                    var row = Math.floor(-(mouse.y - (y + _matrixWidthHalf)) / CELL_SIZE)
+                    if(row >= 0 || row < focusNodes.length 
+                    	|| col >= 0 || col < focusNodes.length 
+                    ){
+    	                hoveredPile.updateLabels(true)
+    					hoveredCell = {row:row, col:col};
+                    }
+                }
+            	for(var i=0 ; i<piles.length ; i++){
+            		piles[i].updateHoveredCell()
+                    piles[i].updateLabels(false)
+            	}
+
+                hoveredPile.updateLabels(true)
+            
+                if(!previousHoveredPile || previousHoveredPile != hoveredPile){
+                    if(coverMatrixMenu.selectedIndex == MODE_DIRECT_DIFFERENCE){
+                        redrawPiles(piles)
+                    }
+                }
+                previousHoveredPile = hoveredPile
+
+            }else{
+                // NOTHING HOVERED
+                // _pileToolsVisible = false
+                visiblePileTools = []
+                if(hoveredGapPile){
+                    var p = hoveredGapPile
+                    hoveredGapPile = undefined
+                    p.draw()
+                }
+                if(previousHoveredPile){
+                    previousHoveredPile.showSingle(undefined)
+                    highlightFrame.visible = false 
+                    previousHoveredPile.draw()
+                    previousHoveredPile = undefined
+                }
+                if(coverMatrixMenu.selectedIndex == MODE_DIRECT_DIFFERENCE){
+                    redrawPiles(piles)
+                }
+
+            }
+
+            // Set lassoActive if user did not start mousedown on a pile but in empty 
+            if(mouseWentDown){
+                lassoActive = !hoveredPile
+            }
+
+            // draw lasso
+            if(lassoActive){
+                var x1 = Math.min(dragStartPos.x, mouse.x)
+                var x2 = Math.max(dragStartPos.x, mouse.x)
+                var y1 = Math.min(dragStartPos.y, mouse.y)
+                var y2 = Math.max(dragStartPos.y, mouse.y)
+
+                scene.remove(lassoObject)
+                lassoObject =  GLUtils.createRectFrame(x2-x1, y2-y1, 0xff0000, 1)
+                lassoObject.position.set(x1+(x2-x1)/2,y1+(y2-y1)/2, 1)
+                scene.add(lassoObject)
+            }
+        }
+
+        mouseWentDown = false
+        render()        
+    
+    }
+
+    function mouseWheelChanged(e){
+
+        e.preventDefault();
+        // if(e.shiftKey){
+        //     if(e.wheelDelta > 0){
+        //         _zoomFac *= 1.1
+        //     }else{
+        //         _zoomFac *= 0.9
+        //     }
+
+        //     // update global measures
+        //     _matrixWidth = CELL_SIZE * _zoomFac * nodes.length     
+        //     _cols = Math.floor(_courseWidth / _matrixWidth);
+
+        //     highlightFrame.scale.set(_zoomFac, _zoomFac, _zoomFac)
+
+        //     updateLayout(0, true);
+        //     for(var i=0 ; i<piles.length ; i++){
+        //         piles[i].scaleTo(_zoomFac)
+        //     }
+        //     render()
+
+        // }
+        // else{
+
+            if(e.wheelDelta > 0){
+                var y = Math.min(camera.position.y + 30, topScrollLimit)    
+                camera.position.setY(y)
+            }else{
+                camera.position.setY(camera.position.y - 30)
+            }
+            render()
+        // }
+    }
+
+    function allCoverChanged(){
+        setPileMode(coverMatrixMenu.selectedIndex, piles)
+        redrawPiles(piles)
+        render()
+    }
+
+    function allNodeOrderChanged(){
+        console.log('allNodeOrderChanged', orderMenu.selectedIndex)
+
+        if(orderMenu.selectedIndex == 2){ // Local
+            for(var i=0 ; i<piles.length ; i++){
+                piles[i].setNodeOrder(piles[i].calculateLocalOrder(), true)
+            }
+        }else{ // DATA or GLOBAL ORDERING
+            setNodeOrder(piles, allPileOrdering[orderMenu.selectedIndex])
+            timeline.updateNodeOrder(allPileOrdering[orderMenu.selectedIndex])
+        }
+    
+
+        redrawPiles(piles)
+        render()
+
+    }
+
+    function redrawPiles(piles){
+        console.log('redrawPiles')
+        for(var i=0 ; i<piles.length ; i++){
+            piles[i].draw();
+        }
+    }
+
+
+
+
+    // SHADERS
+    var attributes = {
+       customColor: { type: 'c', value: [] }
+    }
+    var shaderMaterial = new THREE.ShaderMaterial({
+        attributes: attributes,
+        vertexShader: document.getElementById('vertexshader').textContent,
+        fragmentShader: document.getElementById('fragmentshader').textContent,
+        blending: THREE.NormalBlending,
+        depthTest: true,
+        transparent: true,
+        side: THREE.DoubleSide,
+        linewidth: 2
+    });
+
+
+
+    var pilingHistory = []
+    var historyIndex = -1
+    function savePilingHistory(){
+        historyIndex++
+        pilingHistory = pilingHistory.slice(0, historyIndex) 
+        pilingHistory.push(getCurrentPiling())
+        console.log('historyIndex', historyIndex)
+    }
+
+    function undo(){
+        console.log('UNDO',historyIndex)
+        if(historyIndex > 0){
+            historyIndex--
+            setPiling(pilingHistory[historyIndex])
+        }
+    }
+
+    function redo(){
+        console.log('REDO',historyIndex, pilingHistory.length)
+        if(historyIndex < pilingHistory.length-1){
+            historyIndex++
+            setPiling(pilingHistory[historyIndex])
+        }
+    }
+
+    function updateCellSize(){
+        CELL_SIZE = document.getElementById("cellSizeBox").value
+        console.log('new cellsize: ', CELL_SIZE)
+        CELL_SIZE_HALF = CELL_SIZE/2;
+        labelTextSpec.size = CELL_SIZE-1
+        _matrixWidth = focusNodes.length * CELL_SIZE;
+        _matrixWidthHalf = _matrixWidth/2;
+        // _cols = Math.floor(
+        //         (_courseWidth - MARGIN_LEFT - MARGIN_RIGHT) / (_matrixWidth + MATRIX_GAP_HORIZONTAL))-1
+        _cols = Math.floor((_courseWidth - MARGIN_LEFT - MARGIN_RIGHT) / (_matrixWidth + MATRIX_GAP_HORIZONTAL)) -1
+        for(var i=0 ; i<piles.length ; i++){
+            piles[i].updateCellSize()
+        }
+
+        console.log('_cols', _cols) 
+        scene.remove(highlightFrame)
+        highlightFrame = GLUtils.createRectFrame(_matrixWidth, _matrixWidth, 0xff8100, 10)
+        scene.add(highlightFrame)
+
+        updateLayout(0, true)
+        redrawPiles(piles)
+        render()
+    }   
+
+
+
+    </script>
+   
+</body>
+</html>

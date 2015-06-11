@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" type="text/css" href="multipiles-styles.css">
+</head>
+<title>Matrix Study</title>
+<body>
+        <div id="mainMenu">
+            <h1>Matrix Study</h1>
+            Subject number:
+            </br>
+            <input type="text" id="_subjectNumner" value="2">   
+            </br>   
+            </br>   
+
+            Start Trail:
+            </br>
+            <input type="text" id="startTrail" value="0">   
+                        </br>
+            </br>
+
+            <button id="visualizeBtn"type="text" onclick="init()" autofocus>Go!</button>
+        </div>
+        <div id="divTask" style="display:none">
+            <h1>Task</h1>
+            <h2 id="taskName"></h2>
+            <p id="taskDescription"></p>
+            <i><p id="taskIndications"></p></i>
+            <button id="newTaskBtn"type="text" onclick="showTechniqueScreen()" autofocus>Continue</button>
+        </div>
+        <div id="divTechnique" style="display:none">
+            <h1>Technique</h1>
+            <h2 id="techniqueName"></h2>
+            <p id="techniqueDescription"></p>
+            <button id="newTechniqueBtn"type="text" onclick="initNextTrail()" autofocus>Continue</button>
+            <p id="progressIndicator"></p> 
+            <br/>
+            <h2>Example: </h2>
+            <img id="techniqueImage" border="1" style="padding:20px" height="200px"> 
+     
+        </div>
+        <div id="endScreen" height="0" style="display:none">
+            <h1>The End</h1>
+            <h2>Your're done! Thanks a lot and don't forget to grab your chocolate</h2>
+
+            <button type="text" onclick="finishStudy()">Nice!</button><br/>
+            <button type="text" onclick="finishStudy()">Do you also have 95% cacao?</button><br/>
+            <button type="text" onclick="finishStudy()">My eyes hurt</button><br/>
+            <button type="text" onclick="ffinishStudy()">What is a 'Matrix'?</button><br/>
+            <button type="text" onclick="finishStudy()">Thank you for that wonderful experience. MultiPiles is AWESOME!</button><br/>
+            <button type="text" onclick="finishStudy()">I will never participate in your experiment again</button><br/>
+            <button type="text" onclick="finishStudy()">So, let's quickly finish that stupid questionaire</button><br/>
+            <button type="text" onclick="finishStudy()">Who's that other guy in the office?</button><br/>
+            <button type="text" onclick="finishStudy()">Why do you have that many buttons? </button><br/>
+        </div>
+        <div id="training" style="opacity:0">
+            <h1>Training, take your time</h1>
+        </div>
+       
+    <div id="chart" style="float:left" height="0"></div>
+
+ <script src="lib/d3.min.js"></script>
+        <script src="lib/jquery.js"></script>
+        <script src="lib/colors.js"></script>
+        <script src="lib/science.js"></script>
+        <script src="lib/reorder.js"></script>
+        <script src="lib/jstorage.js"></script>
+        <script src="lib/seedrandom.js"></script>
+        <script src="study-FB.js"></script>
+        <script src="study-sessions.js"></script>
+        <script src="study-SM.js"></script>
+        <script src="study-MP.js"></script>
+        <script src="study-pile.js"></script>
+        <script src="study-matrix.js"></script>
+        <script src="study-PileTools.js"></script>
+        <script src="study-coverMatrix.js"></script>
+
+ 
+    <script type="text/javascript">
+        var NUM_TRAILS = 3;
+        var NUM_TRAINING = 2;
+        var TOT_BLOCKS = 9 
+        var _progress = 1;
+
+    
+        var _subject = 0
+        var TECHNIQUES = ['FB','SM', 'MP'];
+        var TECHNIQUE_NAMES = ['Flip Book','Small Multiples', 'MultiPiles'];
+        var TECHNIQUE_DESCRIPTIONS = [
+        'Hover over the strokes on the bottom to browse the matrices. There are ' + NUM_TRAINING + ' training trails.',
+        'You can scroll up and down. There are ' + NUM_TRAINING + ' training trails.', 
+        'You can pile matrices as well as browse and depile piles (see the instruction sheet for information). There are ' + NUM_TRAINING + ' training trails.']
+        var TASKS = ['STABILITY', 'SIMILARITY', 'STATES'];
+        
+        var TASK_DESCRIPTIONS = [
+        'Find the most stable transition.',
+        'Find state that is most simlar to the RED one.',
+        'Identify 6 times points to cut the timeline into 7 states.']
+        var TASK_INDICATIONS = [
+        'If you know the answer, click onto any matix of that state. Rank your confidence between "good","medium", "bad".', 
+        'If you know the answer, click onto any matix of that state. Rank your confidence between "good","medium", "bad".', 
+        'Click on the timeline (FlipBook), between the matrices (Small Multiples), or create piles (MultiPiles) in order to indicate state borders. Then, press RETURN to proceed ot the next trail. Rank your confidence between "good","medium", "bad".'
+        ]
+
+        var DATA_SETS = [3];
+        DATA_SETS['SIMILARITY'] = []
+        DATA_SETS['STABILITY'] = []
+        DATA_SETS['STATES'] = []
+
+
+       
+        var _course = [];
+        var _currentTrail = 0;
+        var _currentTechnique = -1;
+        var _currentTechniqueClass;
+        var _currentTask = -1;
+        var _currentData = -1;
+
+
+        // TECHNIQUE VARIABLES
+        var MATRIX_WIDTH = 200
+        var CELL_SIZE = 4;
+        var SVG_WIDTH = 1000;
+
+        var MATRIX_GAP_HORIZONTAL = 10
+        var MATRIX_GAP_VERTICAL = 20
+
+
+        // GENERAL SETTINGS
+        var PORT = 2222;
+        var SNAKE = false;
+        var LABEL_DIST = 5;
+        var LABEL_WIDTH = 62;
+        var MARGIN_LEFT = 50;
+        var MARGIN_TOP = 50;
+        var MARGIN_RIGHT = 50;
+        var MARGIN_BOTTOM = 50;
+        var svg;
+        var CELL_THRESHOLD = .2
+
+        var stateColors=['#e41a1c',
+                        '#377eb8',
+                        '#4daf4a',
+                        '#984ea3',
+                        '#ff7f00',
+                        '#ffff33',
+                        '#a65628',
+                        '#f781bf',
+                        '#999999']
+
+      
+        var matrices = []; // contains all matrices 
+
+        var hoveredMatrix;
+
+        var nodes = []; 
+        var piles = []
+        
+        var _isLoadedSession = false
+        var _isSavedSession = false
+
+        var _fileNodeOrder = [];
+
+         var isMouseOverPilePreview = false;
+        var hoveredMatrix = null;
+        var draggingMatrix = null; 
+        var selectedMatrices = [];
+        var dragActive = false;
+        var matrixGapMouseover = false;
+        var _selectedGaps = []
+        var _graph;
+
+        var _this;
+
+        // SESSION VARIABLES
+        var TIME =0;
+
+        $.get( "http://localhost:2222/study/data/", function( data ) {
+            var list = data.split('href="') 
+            for(var i=0 ; i<list.length ; i++){
+                if(list[i].indexOf('.dyjson') == -1) continue
+                if(list[i].indexOf('SIMILARITY') > -1)
+                    DATA_SETS['SIMILARITY'].push('data/'+ list[i].split('"')[0])
+                if(list[i].indexOf('STABILITY') > -1)
+                    DATA_SETS['STABILITY'].push('data/'+ list[i].split('"')[0])
+                if(list[i].indexOf('STATES') > -1)
+                    DATA_SETS['STATES'].push('data/'+ list[i].split('"')[0])
+            }
+        });
+
+
+        function init(){
+
+            d3.select("body")
+                .on("keydown", generalKeydown)
+            d3.select("body")
+                .on("keyup", generalKeyup)
+       
+            _subject = parseInt($('#_subjectNumner')[0].value);
+            Math.seedrandom(_subject + "")
+            var i, _currentTrail = 0;
+            for(var q=0; q<TASKS.length ; q++ ){
+                // console.log("Task:", TASKS[q])
+                for(var t=0; t<TECHNIQUES.length ; t++ ){
+                    // console.log("\tTechnique:", TECHNIQUES[ (t+_subject) %3 ])
+                    shuffle(DATA_SETS)
+                    for(var d=0; d<(NUM_TRAILS + NUM_TRAINING) ; d++ ){
+                        // console.log("\t\tDataSet:", DATA_SETS[d])
+                        var line = []
+                        line.push(_subject);
+                        line.push(_currentTrail++);
+                        line.push(TASKS[q]);
+                        line.push(TECHNIQUES[ (t+_subject) %3 ]);
+                        line.push(DATA_SETS[TASKS[q]][d]);
+                        line.push(d < NUM_TRAINING ? true : false);
+                        _course.push(line);
+                    }                
+                }
+            }
+            _currentTrail = $('#startTrail')[0].value;
+
+            $('#mainMenu').remove();
+
+            svg = d3.select("#chart")
+                .append('svg')
+                .attr('id', 'vissvg')
+                .attr("width", SVG_WIDTH)
+                .attr("height", 10000)
+
+            // nextTrail();
+            showTaskScreen();
+        }
+
+
+        function initNextTrail(){
+            $('#divTask').css('display','none');
+            $('#divTechnique').css('display','none');;
+
+            if(_course[_currentTrail][3] != _currentTechnique){
+                _currentTechnique = _course[_currentTrail][3]
+                _progress++;
+                // svg.on("dragstart", null)
+                //     .on("drag", null)
+                //     .on("dragend", null)
+
+                switch(_currentTechnique){
+                    case 'FB':_currentTechniqueClass = new Study_FB(); break;
+                    case 'SM':_currentTechniqueClass = new Study_SM();break;
+                    case 'MP':_currentTechniqueClass = new Study_MP();break;
+                    default: console.log("TECHNIQUE NOT FOUND");break;
+                }
+            }
+            _currentTask = _course[_currentTrail][2]
+            _currentTechnique = _course[_currentTrail][3]
+            _currentData = _course[_currentTrail][4]  
+
+            // console.log(_currentTask, _currentTechnique)
+
+            if(_course[_currentTrail][5])   
+                $('#training').css('opacity',1);
+            else   
+                $('#training').css('opacity',0);
+                
+
+            _currentTechniqueClass.loadFile(_currentData)
+
+
+        }
+
+        
+        function finalizeNextTrail(){
+        
+            matrixGapMouseover = false;
+            _selectedGaps = []
+
+            var stateBorders = _graph.stateborders;
+            var stateCount = 0;
+
+            var colorOffset = 0;
+            if(_currentTask == 'SIMILARITY')
+                colorOffset = _graph.similarStates[0];
+
+            console.log("colorOffset", colorOffset)
+
+            for(var m=0 ; m<matrices.length ; m++){
+                if(m == stateBorders[stateCount])
+                    stateCount++;
+
+                matrices[m].g.on("click", function(){
+                    var i = parseInt(d3.select(this).attr("id").split('_')[1]);
+                    endTrail(i)
+                })
+                matrices[m].setState(stateCount);
+                if(_currentTask != 'STATES')
+                    matrices[m].setColor(stateColors[((stateCount-colorOffset) + stateColors.length) % stateColors.length]);
+            }
+
+            if(_currentTechnique == 'MP' 
+                && _currentTask != 'STATES'){
+                for(var i=0 ; i<piles.length ; i++){
+                    console.log("check covermatrices")
+                    piles[i].coverMatrix.g.on("click", function(){
+                        var i = parseInt(d3.select(this).attr("id").split('_')[1]);
+                        endTrail(matrices[i])
+                    })
+                }
+            } 
+
+            // console.log("Simliar states: ", _graph.similarStates[0], _graph.similarStates[1])           
+            console.log("stateBorders:", _graph.stateborders)
+
+
+            TIME = Date.now();
+        }
+
+        function endTrail(i){
+            console.log("end trail ", i)
+            var clickedMatrix = matrices[i]
+
+            if(_currentTask == 'STATES'
+                && _currentTechnique == 'MP'){
+                _selectedGaps = [];
+                for(var i=0; i<piles.length; i++){
+                    _selectedGaps.push(matrices.indexOf(piles[i].getLast()))
+                }
+            }
+            console.log("_selectedGaps", _selectedGaps);
+
+            matrices = [];
+            piles = [];
+            // Validate user answer
+            var duration = Date.now() - TIME;
+            var error;
+            switch(_currentTask){
+                case 'STABILITY': error = parseInt(_graph.stablestate) == clickedMatrix.state; break;
+                case 'SIMILARITY': error = _graph.similarStates[1] == clickedMatrix.state; break;
+                case 'STATES': error=0
+                    for(var i=0; i<_selectedGaps.length; i++){
+                        error += Math.abs(_selectedGaps[i] - _graph.stateborders[i])
+                    }
+            } 
+            if(_currentTechnique == 'MP'){
+                // CREATE PILES
+                var currState = 0;
+                var mats = [];
+                for(var i=0 ; i<matrices.length ; i++){
+                    if(currState == matrices[i].state)
+                        mats.push(matrices[i]);
+                    else{
+                        pile(mats, piles[i])
+                        mats = []
+                    }
+                }    
+            }
+            console.log("RESULT: ", error)                     
+
+            console.log(duration)
+
+            // write session
+            writeSession(duration, error, _course[_currentTrail][5])
+            // testNextTrail();
+            scrollTo(0,-200);
+
+            nextTrail()
+        }
+
+        function nextTrail(){
+            $('#vissvg').empty();
+            _currentTrail++;
+            console.log(_currentTrail)
+
+            if(_currentTrail == _course.length){
+                // End experiment
+                $('#endScreen').css('display','inline');
+            }else{
+                if(_course[_currentTrail][2] != _currentTask){
+                    showTaskScreen()
+                }else if(_course[_currentTrail][3] != _currentTechnique){
+                    showTechniqueScreen()
+                }else{
+                    initNextTrail();
+                }
+            }
+        }
+
+        function showTaskScreen(){
+            var task = _course[_currentTrail][2];
+            $('#divTask').css('display','inline-block');
+            $('#taskName').html(task)
+            $('#taskDescription').html(TASK_DESCRIPTIONS[TASKS.indexOf(task)])
+            $('#taskIndications').html(TASK_INDICATIONS[TASKS.indexOf(task)])
+        }
+
+        function showTechniqueScreen(){
+            $('#divTask').css('display','none');
+            var technique = _course[_currentTrail][3]
+            $('#divTechnique').css('display','inline-block');
+            $('#techniqueName').html(TECHNIQUE_NAMES[TECHNIQUES.indexOf(technique)])
+            $('#techniqueDescription').html(TECHNIQUE_DESCRIPTIONS[TECHNIQUES.indexOf(technique)])
+            $('#progressIndicator').html('Progress: '+_progress + "/" + TOT_BLOCKS)
+            $('#techniqueImage').attr('src',technique + ".png")
+           }
+
+        function finishStudy(){
+            // go to google questionaire
+
+            var dump = getSessionDump();
+            var url = 'data:text/json;charset=utf8,' + encodeURIComponent(dump);
+            window.open(url, '_blank');            
+        }
+        
+
+
+        //shuffles list in-place
+        function shuffle(list) {
+          var i, j, t;
+          for (i = 1; i < list.length; i++) {
+            j = Math.floor(Math.random()*(1+i));  // choose j in [0..i]
+            if (j != i) {
+              t = list[i];                        // swap list[i] and list[j]
+              list[i] = list[j];
+              list[j] = t;
+            }
+          }
+        }
+
+        function generalKeydown(event)
+        {
+            var key = d3.event.which;
+            console.log(key)
+            if(key == 13 && _currentTask == 'STATES'){
+                endTrail(-1);
+            }
+        }
+
+
+        function generalKeyup(event){}
+
+
+    </script>
+</body>
+</html>

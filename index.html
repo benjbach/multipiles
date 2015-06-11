@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html
+>
+<head>
+<html>
+<head>
+<link rel="stylesheet" type="text/css" href="styles.css">
+<link href='http://fonts.googleapis.com/css?family=Montserrat:400,700' rel='stylesheet' type='text/css'>
+<link href='http://fonts.googleapis.com/css?family=Comfortaa' rel='stylesheet' type='text/css'>
+</head>
+<title>MultiPiles</title>
+<body>
+    <div id="main">
+        <div id="top">
+            <h1>Small MultiPiles: <br/>Piling Time to Explore Temporal Patterns in Dynamic Networks</h1>
+            <img src="figures/teaser.png" height="200px"/>
+            <p class="authors">Benjamin Bach, Nathalie Henry Riche, Tim Dwyer, Tara Madhyastha, Jean-Daniel Fekete, Tom Grabowski</p>
+            <img height="30px" src="figures/play.png"/>
+            <a href="multipiles.m4v">Watch</a>
+            <img height="30px" src="figures/paper.png"/>
+            <a href="Bach2014multiples.pdf">Read</a>
+            <img height="30px" src="figures/cite.png"/>
+            <a href="bibtex.tex">Cite</a>
+            <img height="30px" src="figures/mail.png"/>
+            <a href="mailto:benjamin.bach@inria.fr">Mail</a>
+            <div id="center">           
+        </div>
+
+        <div id="doublecolumn">
+            <div id="left" class="col">
+            <h2>See. Pile. Explore.</h2>
+            <p>
+          MultiPiles is a visualization to explore time-series of dense, weighted networks and is based on the physical analogy of piling adjacency ma- trices, each one representing a single temporal snapshot. While auto- matic or manual piling lets us scale to networks with hundreds of tem- poral snapshots, we provide various visual encodings and interaction techniques to create piles, order matrices, and explore piles.
+            </p>
+            <img src="figures/piling.png" width="100%"/>
+<!--             <p>
+            MultiPiles provides the following interactive methods to create and explore piles: 
+            </p>
+            <img src="figures/piling-operations.png" width="100%"/>
+            </p> -->
+            </div>
+
+
+            <div id="right" class="col">
+            <h2>Try (optimzed for chrome):</h2>
+                <label>Data set: </label><select id="fileSelection" onchange="setVisualizationURL()"></select>
+                <br/>
+                <br/>
+                <a id="visLink" href="">Visualize</a>
+            </form>
+
+            <h2>Visualize Your Data:</h2>
+
+            <p>Your data must be in a specific JSON format. Please see our manual below for further information.
+            </p>
+
+            <form action="upload_data.php" method="post" enctype="multipart/form-data">
+                    Upload files: <input type="file" name="file">
+                    <input type="submit" value="Upload Data">
+            </form>        
+
+            <h2>Contribute:</h2>
+            <p>This current version is a research prototype and contains bugs on purpose. If you find them or are interested in contributing, please contact <a href="mailto:benj.bach@gmail.com">Benjamin</a>. We will improve MultiPiles and add functionality if people as more people consider it useful. Hence don't hesitate to send us your feedback.</p>
+
+            <!-- <h2>Saved Sessions:</h2><!--  -->
+
+           <!--  <select id="sessionSelection"></select>
+            <br/>
+            <button type="button" onclick="loadSession()">Load Session</button>
+            <br/>
+            <button type="button" onclick="exportSession()">Export Session</button>
+            <br/>
+            <button type="button" onclick="deleteSession()">Delete Session</button>
+            <hr noshade>
+
+            <h2>Import Sessions:</h2>
+            Paste JSON session dump here:<br/>
+            <textarea id="sessionImport" _cols="70" rows="10"></textarea><br/>
+            <button type="button" onclick="importSession()">Import Session</button>
+ -->    
+        </div>
+        </div>
+        
+        <div id="manualContainer">
+        <div id="manual">
+            <h1>Quick start</h1>
+            <p>If you are familiar with the general concept of MultiPiles, this section gives you a quick introduction into the interactions.</p>
+
+            <p>1. Upload your data. The website redirects to the visualization.</p>
+            <p>2. Use the piling slider to automatically create piles.</p>
+            <p>3. Mouse over the matrix stack above each pile to browse matrices in the pile.</p>
+            <p>4. Use drag and drop, and lasso selection to create piles. Click on matrices in the stack to split a pile.</p>
+            <p>5. Drop down menus on the top of the window lets you change matrix row ordering, and the information shown in each cover matrix of the piles.</p>
+            <p>6. The pile menu (hovering a pile) gives you individual options for every pile.</p>
+            
+            <h1>Manual / Reference</h1>
+            <p>This section provides an in-depth explanation of the different visualizations and interactions in MultiPiles.</p>
+
+            <h2>Data Format:</h2>
+            <p>
+            Your data must be in UTF formatted json. Below is a simple data example with 3 time steps and 4 nodes. Every time step is encoded as an adjacency matrix with positive values. 
+            </p>
+            <pre>
+{
+    "nodes": [
+        {"name":"A"}, 
+        {"name":"B"}, 
+        {"name":"C"}, 
+        {"name":"D"}
+    ], 
+    "times": [
+        {"name": 1900, "matrix": [
+            [ 0,  1, .3, .1],
+            [ 1,  0, .5, .1],
+            [.3, .5,  0,  0],
+            [.1, .1,  0,  0]
+        ]},
+        {"name": 1901, "matrix": [
+            [ 0, .9, .2, .3],
+            [.9,  0, .6, .3],
+            [.2, .6,  0,  0],
+            [.3, .3,  0,  0]
+        ]},
+        {"name": 1902, "matrix": [
+            [ 0, .6, .1, .5],
+            [.6,  0, .7, .5],
+            [.1, .7,  0,  0],
+            [.5, .5,  0,  0]
+        ]}
+    ]
+}
+            </pre>
+
+            <h2>Interface components</h2>
+            <p>MultiPiles consists of a menu bar (top), a timeline (middle), a piling slider (left) and a piles plot (bottom):</p>
+            <img width="100%" src="manual/ui.png">
+
+            <p><b>Piles plot:</b> this component is the most important in MultiPiles and shows matrices as well as piles. Each pile is represented by a matrix ("Cover matrix"). The stack above each matrix represents the individual time steps within that pile. For exmaple, the first pile in the above figure has roughly the double the amount of time steps than the second pile. Below each pile, there are three numbers: the first is a label indicating the order of this pile (1st, 2nd, etc). The second number (actually a number pair) indicates which time steps are contained in this time step (e.g. <i>1-25</i> in the first pile.). The last number indicates the exact number of time steps in the pile. 
+            </p>
+
+            <p><b>Timeline:</b> the timeline is a heatmap where columns represent time steps (same as matrices in the piles plot) and rows correspond to nodes in the networks. Darkness inside the timeline indicates the overall connectivity (weighted degree) of a node (row) at any timepoint (column). Dark cells mean high connectivity to all other regions, bright cells mean less connectivity.
+            </p>
+
+            <p><b>Piling slider:</b> this slider allows to quickly set a threshold to pile time steps according their similarity.</p>
+
+            <p><b>Menu:</b> this menu contains general commands to undo/redo any piling operation, to enable/disable piling animations and to set the size of matrices in the matrix plot.</p>
+
+
+            <h2>Cover Matrix Encoding</h2>
+            <p>MultPiles provides 5 visual encodings for cover matrices (matrix representing each pile). The type of encoding can be changed via the drop down menu from the top menu, or individually for each pile from the respective pile context menu.</p>
+
+            <img src="manual/cover-mean.png" width="100%"/>
+            <p><b>Mean:</b> each matrix cell encodes the mean weight for this connection within this pile. White means 0, black means the maximal value.</p>
+
+            <img src="manual/cover-trend.png" width="100%"/>
+            <p><b>Trend:</b> each matrix cell encodes whether the strengh for this connection increases (blue) or decreases (red) throughout the pile.</p>
+
+            <img src="manual/cover-variability.png" width="100%"/>
+            <p><b>Variability:</b> each matrix cell encodes how strong the connection strength varies during the period represented by the pile. White cells means no or small standart deviation in edge weight over time, dark blue refers to a high standart deviation over time.</p>
+
+            <img src="manual/cover-difference.png" width="100%"/>
+            <p><b>Adjacent difference:</b> each matrix cell encodes the difference in mean to the previous pile. Blue means increase in connection strength, red means decrease.</p>
+            
+            <img src="manual/cover-directdifference.png" width="100%"/>
+            <p><b>Direct difference:</b> hovering over a pile, each matrix cell in the other piles shows the difference in mean to the hovered pile. In the above figure, all piles show their direct difference to pile 5. Blue means increase in connection strenght, red means decrease.</p>
+
+
+
+            <h2>Interaction</h2>
+
+            <h3>1. Pile creation and destruction</h3>
+
+            <p><b>Automatic Piling:</b> move the piling slider up to yield less pile with more time steps. Move the slider down to obtain a finer piling with more piles but less time steps in each pile.</p>
+            <p><b>Piling method:</b> The two piling methods currently implemented in MultiPiles are <b>sequential</b> and <b>clustered</b>. You can select the method below the piling slider. The magic behind each method is explained in the <a href="Bach2014multiples.pdf">paper</a>. 
+
+            <p><b>Combine Piles:</b> 
+            <ul>
+                <li><b>Lasso select</b> piles.</li>
+                <li><b>Drag and drop</b> a pile to its previous pile. Only adjecent piles can be piled (!).</li>
+                <li><b>Click into the gap</b> between two piles to either a) pile all matrices between the gap and the most recent pile, or b) to combine the two previous piles.</li>
+                <li>In the timeline view, click on the <i>first</i> time step of a pile (column) to combine this pile with the previous one.  
+            </ul>
+
+            <p><b>Split piles:</b> from the matrix previews (stack above matrix that indicates pile size) click onto the matrix (timestep) where you want split. Alternatively, click on a time step in the timeline view to split that pile.</p> 
+            <p><b>Depile:</b> you can depile any pile with the <i>Depile</i> command from the pile context menu. 
+            </p>
+
+            <h3>2. Pile Exploration</h3>
+
+            <p><b>Preview:</b> to obtain a quick preview of all the matrices within one pile, without destroying (<i>depiling</i>) it, keep the mouse pressed on the pile. Releasing the mouse, snaps matrices back into the pile.</p>
+            <p><b>Flip though:</b> hovering over the stack above each pile (there is no stack, if the pile contains only a single matrix), flips though all of the matrices within this pile. Think of this techniques as a video navigation slider. Fascinating! Alternatively, you can hover the timeslices directly in the timeline (same effect, still fascinating!).
+            </p>
+
+            <p><b>Show node labels:</b> as you hover over a cell in a matrix, press <i>shift</i> to show the related nodes' labels. 
+
+            <h3>3. Matrix Ordering</h3>
+
+            <p>Multipiles provides three ways to reorder rows and columns in matrices and piles, revealing patterns in your data. The ordering method can be set for all piles using the dropdown menu, or individually for each pile from the respective pile context menu:
+            <ul>
+                <li><b>Data:</b> (default) rows and colums are not reordered but appear as indicated by the order of nodes in the JSON data file. All matrices obtain the same ordering.</li>
+                <li><b>Global:</b> rows and columns are ordered to try to be optimal across all matrices. All matrices obtain the same ordering. As an effect of this global optimzation, piles with more structure and clusters, can indicate more frequent states. Noisy piles indicate less frequent states.</li>
+                <li><b>Local:</b> optimzes row and colum ordering for the time steps within this pile only. 
+            </ul>
+            <p>
+            
+            <p><b>Propagte ordering:</b> an individual ordering that is optimal for one matrix can be propagated to all other piles by clicking on the corresponding label in the pile context menu (hover pile).</p>
+
+            <h3>4. Filtering</h3>
+
+            <p><b>Zoom:</b> the global zoom, i.e. size of matrices, can be adjusted with the <i>Zoom</i> slider on the top of the window.</p>
+
+            <p><b>Fliter:</b> in order to focus on a subnetwork (e.g. cluster), drag over the contained nodes in the node list at the timeline. Selected nodes become blue and matrices get updated. To select any filtered node, select a single node from the node list. Once nodes are filered, any automatic piling takes only those nodes into account.</p>
+
+        </div>
+        </div>
+        </div>
+
+        <div id="bottom">
+            <hr/>
+            <img class="logo" src="logos/msr-inria.png"/>
+            <img class="logo" src="logos/ibic.png"/>
+            <img class="logo" src="logos/msr.png"/>
+            <img class="logo" src="logos/inria.png"/>
+            <img class="logo" src="logos/monash.png"/>
+
+            <p>
+            Icons made by <a href="http://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="http://www.flaticon.com" title="Flaticon">www.flaticon.com</a>             is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0">CC BY 3.0</a></p>
+        </div>
+    </div>
+    <script src="code/lib/d3.min.js"></script>
+    <script src="code/lib/jquery.js"></script>
+    <script src="code/lib/colors.js"></script>
+    <script type="text/javascript">
+
+        function setVisualizationURL(){
+
+            var menu = $('#fileSelection')[0]
+            var file = menu.options[menu.selectedIndex].text;
+
+            $('#visLink').attr('href', 'code/multipiles.html?data='+file)
+
+        
+        }
+
+        $.get('data', function( data ) {
+            var list = data.split('href="') 
+            for(var i=0 ; i<list.length ; i++){
+                if(list[i].indexOf('.dyjson') == -1) continue
+                $("#fileSelection")
+                    .append('<option>../data/' + list[i].split('"')[0] + '</option>')
+            }
+        });
+
+
+    </script>
+</body>
+</html>

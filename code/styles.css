@@ -1,0 +1,333 @@
+body{
+    font-family: Helevetica, sans-serif;
+    font-size: 11pt;
+}
+
+/*div{border:1px solid #000000;}*/
+
+p.authors{
+    font-style: italic;
+}
+
+div#top{
+    margin-top: 30px;
+    min-height: 70px;
+}
+
+div#main{
+    text-align: center;
+    width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+div.col{
+    text-align: left;
+}
+
+div#doublecolumn{
+    height: 400px;
+}
+
+div#left{
+    padding-right: 30px;
+    float:left;
+    width: 45%;
+}
+
+div#center{
+    margin-left:0px;
+    padding-right: 30px;
+    float:left;
+    width: 10000px;
+}
+
+div#right{
+    float:right;
+    width: 45%;
+}
+
+div#manualContainer{
+    text-align: center; 
+    width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+div#manual{
+    text-align: left; 
+}
+
+div#bottom{
+    float:right;
+    width:100%;
+}
+
+li{
+    font-weight: 100;
+}
+
+h1, h2{
+    font-family: 'Comfortaa', Helvetica, sans-serif;
+}
+
+h2{
+    text-align: center;
+}
+
+p{
+    font-family: Helvetica, sans-serif;
+    font-weight: 100;
+    line-height: 1.3em;
+}
+
+#inputformat{
+    font-size: 10pt;
+    font-family: monospace;
+
+}
+
+pre{
+    width: 100%;
+    text-align: left;
+}
+
+
+
+href{
+    color:#000;
+    /*vertical-align: center;*/
+}
+
+img.logo{
+    height:50px;
+    margin:20px;
+}
+
+
+
+/***** D3 content ******/
+
+    .menuPileTools{
+        font-family: Helvetica;
+        font-size: 9pt;
+        fill:#fff;
+    }
+
+    .infotext{
+        font-family: Helvetica;
+        font-size: 11pt;
+        fill:#000;
+    }
+
+    .sliderLabel{
+        font-family: Helvetica, sans-serif;
+        font-size: 9pt;
+    }
+
+    .nodeTrace{
+        stroke:1;
+        stroke:#777;
+        opacity: .3;
+    }
+
+    .timelineNodeLabels{
+        font-family: Helvetica;
+        font-size: 7pt;
+        fill:#555;
+        text-anchor: end;
+    }
+    .timelineNodeLabels.selected{
+        font-family: Helvetica;
+        fill:#66f;
+    }
+    .timelineTimeLabels{
+        font-family: Helvetica;
+        stroke:none;
+    }
+
+    .timelineControl{
+        font-family: Helvetica;
+        font-size: 9pt;
+    }
+
+    #timeline{
+        stroke:#777;
+        stroke-width:1;
+    }
+
+    .timelineMatrix{
+        stroke:#aaa;
+        stroke-width: 4;
+    }
+
+    .timelineMatrix-hovered{
+/*        stroke:#111;
+        stroke-width: 4;*/ 
+        opacity: .6;
+   }
+
+
+    rect.matrixbackground{
+        fill: #fff;
+        stroke:#ddd;
+        stroke-width:1;
+    }
+
+    rect.matrixbackground-highlighted{
+        fill: #fff;
+        stroke: #000;
+        stroke-width: 3;
+    }
+
+    .matrixGap{
+        fill:#fff;
+        stroke:none;
+    }
+
+     .matrixGap-hovered{
+        fill:#aaa;
+        stroke:none;
+    }
+
+    .labelbackground{
+        fill:#fff;
+        stroke: none;
+    }
+
+    .pilePreview{
+        stroke: #000;
+        stroke-width: 2;
+    }
+    .pilePreview-hovered{
+        stroke: #777;
+        stroke-width: 2;
+    }
+
+    .pilePreviewSmall{
+        stroke: #000;
+        stroke-width: 1;
+    }
+    .pilePreviewSmall-hovered{
+        stroke: #777;
+        stroke-width: 3;
+    }
+    
+
+    .pileTools{
+        fill: blue;
+    }
+
+    .cell{
+       stroke: none;
+       fill:#000;
+    }   
+
+
+  
+    .cell-highlight{
+        /*stroke: #000;*/
+        /*stroke-width:4;*/
+        /*opacity: 1;*/
+        fill:#f00;
+    }
+    .gridLine{
+        stroke: #eee;
+        stroke-width: 1;
+    }
+
+    .cellHalo{
+        fill: #333333;  
+        opacity: .0;
+    }   
+
+    .matrixLabel{
+        font-size: 7pt;
+        font-family: Helvetica, sans-serif;
+        opacity: .6;
+        text-anchor:right;
+    }
+
+    .matrixLabel.highlight{
+        font-size: 7pt;
+        color:#f00;
+        font-family: Helvetica, sans-serif;
+        font-weight: bold;
+        opacity: 1;
+    }
+    
+    .nodelabel{
+        color: #777;
+        font-size: 7pt;
+        font-family: Helvetica, sans-serif;
+        font-style: normal;
+    }
+    .toolLabel{
+        fill: white;
+        font-size: 9pt;
+        font-family: Helvetica, sans-serif;
+        font-style: normal;
+    }
+
+    .nodelabelline{
+        stroke:#888;
+    }
+
+
+    .rowhighlightline{
+        stroke: #444;
+        stroke-width:2;
+    }
+
+
+   
+    #selectionRect{
+        fill: none;
+        stroke: #f00;
+        stroke-width: 1;
+        opacity: .5;
+    }
+
+
+
+    
+    #menuLoadData{
+        display: inline-block;
+        text-align: left;
+    }
+
+
+    
+    hr{
+        border: none;
+        height: 1px;
+        color:#ddd;
+        background-color: #ddd;
+    }
+
+    button{
+        background-color:#fff;
+        -moz-border-radius:4px;
+        -webkit-border-radius:4px;
+        border-radius:4px;
+        border: solid 1px #000;
+        display:inline-block;
+        cursor:pointer;
+        font-size:12px;
+        padding:3px 16px;
+        text-decoration:none;
+        margin-bottom:10px;
+    }
+
+    .black{
+           background-color:#333;
+    }
+
+
+.myButton:hover {
+    background-color:#5cbf2a;
+}
+.myButton:active {
+    position:relative;
+    top:1px;
+}
+
